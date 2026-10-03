@@ -1,21 +1,31 @@
-import { definePlugin, Field } from 'millennium';
+import { 
+	definePlugin, 
+	Field,
+	playSectionClasses, 
+	findModuleDetailsByExport 
+} from 'millennium';
+import { Steam, NON_STEAM_APP_APPID_MASK } from "steambrew-utils";
+import { onLocationChange, onPopupCreate, PopupType } from "steambrew-utils/watchers";
 import { useEffect, useState } from 'react';
+import { createRoot } from "react-dom/client";
 
 const SettingsContent = () => {
-	return <Field label="Hello, World!" />;
+	return <Field label="shuba" />;
 };
 
-/** @ffi */
-export function subtract(a: number, b: number): { difference: number; a: number; b: number } {
-	console.log('Substracting', a, 'from', b);
-	return { difference: a - b, a, b };
-}
+const Tooltip = findModuleDetailsByExport(
+  (m) =>
+    m?.toString?.()?.includes(`divProps`) &&
+    m?.toString?.()?.includes(`tooltipProps`) &&
+    m?.toString?.()?.includes(`toolTipContent`) &&
+    m?.toString?.()?.includes(`tool-tip-source`),
+)?.[1];
 
 const Icon = () => {
 	const [icon, setIcon] = useState<string>();
 
 	useEffect(() => {
-		console.log('Getting icon...');
+		//log('Getting icon...');
 		backend.getSteamBrewIconResource().then(setIcon);
 	}, []);
 
@@ -37,19 +47,106 @@ export const hookedSettingsIcon = {
 	SteamButton: () => <Icon />,
 };
 
+function dbgLog(...args: any[]) {
+  	window?.console.log('[DEBUG]', ...args);
+}
+
+async function patch(window: Window, appId: number) {
+	dbgLog('Patching...');
+	if (appId < NON_STEAM_APP_APPID_MASK) {
+		await render(window, );
+		return;
+	}
+
+	// TODO: Implement patching for non-library app paths if necessary.
+}
+
+async function render(window: Window, app?: any)
+{
+	dbgLog('Rendering...');
+	let PlayBar = playSectionClasses;
+	const className = PlayBar.GameStatsSection;
+	let t = (
+		<Tooltip >
+			<div
+				launch-args
+				className={`${PlayBar.GameStat} ${PlayBar.LastPlayed} Panel`}
+				style={{ cursor: "pointer" }}
+			>
+				<div className={PlayBar.GameStatRight}>
+					<div className={PlayBar.PlayBarLabel}>SHUBA</div>
+				</div>
+			</div>
+		</Tooltip>
+	);
+	dbgLog('still rendering...');
+	if(!window || !window.document)
+	{
+		dbgLog('Window or document not available. Window: ', window, ' | Document: ', window?.document);
+		return;
+	}
+	const parents = window.document.querySelectorAll(`.${className}`); // querySelectorAll(window.document, `.${className}`);
+	//let parents: string[] = [];
+	dbgLog('Found parents: ', parents);
+	for (const parent of parents) {
+
+		if (parent.querySelector("[launch-args]")) continue;
+		const container = window.document.createElement('div');
+		createRoot(container).render(t);
+		parent.appendChild(container);
+	}
+}
+
 async function initializePlugin() {
-	console.log('Frontend initialized');
+	onPopupCreate((popup, type) => {
+		if (type !== PopupType.Desktop && type !== PopupType.Gamepad)
+			{
+				dbgLog('{onPopupCreate} Ignoring non-desktop and non-gamepad popup. Type: ', type);
+				return;
+			}
 
-	const sum = await backend.add(100, 100, 100);
-	console.log('add result:', sum);
+		if(popup.m_strTitle !== "Steam")
+		{
+			dbgLog('{onPopupCreate} Wrong popup detected: ', popup);
+			return;
+		}
 
-	console.warn('Example warning', { sum, threshold: 150 });
-	console.error('Example error', new Error('example error'));
+		const pw = popup.window;
+		if (!pw)
+		{
+			dbgLog("{onPopupCreate} popup.window is not available. popup.window: '", popup.window, "'");
+			return;
+		}
+
+		// ===== Monitor Main Window Location ===== //
+		onLocationChange(
+			() => {
+				if (type === PopupType.Desktop) return Steam.MainWindowBrowserManager?.m_lastLocation;
+				if (type === PopupType.Gamepad) return pw.opener?.location;
+			},
+			async ({ pathname }) => {
+				dbgLog('{onPopupCreate} pathname: ', pathname);
+				if (!pathname.startsWith("/library/app/"))
+					{
+						dbgLog('{onPopupCreate} Ignoring non-library app path. pathname: ', pathname);
+						return;
+					} 
+
+				const appId = Number(pathname.split("/")[3]);
+				dbgLog('{onPopupCreate} appId: ', appId);
+				if (Number.isNaN(appId)) return;
+				
+				await patch(pw, appId); 
+			},
+		);
+  	});
+	
+	dbgLog('Frontend initialized');
 }
 
 export default definePlugin(() => {
 	initializePlugin();
-
+	
 	return {
 		title: 'My Plugin',
 		icon: <Icon />,

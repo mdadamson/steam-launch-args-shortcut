@@ -18,24 +18,13 @@ end
 
 -- Called when the Steam UI has fully loaded.
 local function on_frontend_loaded()
-    local start = utils.time_micro()
     logger:info("Frontend load notification received!")
-    -- once the frontend is loaded, we can make calls with it.
-    local result = millennium.call_frontend_method("subtract", { 200, 100, false })
-
-    if result == nil then
-        logger:error("Failed to call Version.parse")
-        return
-    end
-    local end_time = (utils.time_micro() - start) / 1000
-    logger:info(string.format("Result %s in %.2fms", result.difference, end_time))
 end
 
 local function get_patches()
     return {
         {
-            find =
-            [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
+            find = [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
             file = [[chunk~[0-9a-f]+\.js]],
             transforms = {
                 {

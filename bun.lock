@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "millennium-plugin",
+      "dependencies": {
+        "steambrew-utils": "0.0.0-beta-20260816131110",
+      },
       "devDependencies": {
         "@steambrew/starlight": "^1.1.1",
         "@types/react": "19.1.1",

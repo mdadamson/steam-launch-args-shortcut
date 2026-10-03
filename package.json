@@ -4,6 +4,9 @@
     "build": "./node_modules/.bin/starlight pack",
     "prepare": "./node_modules/.bin/starlight lsp"
   },
+  "dependencies": {
+    "steambrew-utils": "0.0.0-beta-20260816131110"
+  },
   "devDependencies": {
     "@types/react": "19.1.1",
     "@types/react-dom": "19.1.1",
