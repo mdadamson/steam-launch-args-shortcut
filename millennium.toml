@@ -1,13 +1,13 @@
 [plugin]
-id = "com.example.boilerplate"
-name = "Boilerplate Plugin"
+id = "launchOptionsShortcut"
+name = "Launch Options Shortcut"
 version = "1.0.0"
-author = "Millennium"
-description = "A template plugin for Millennium."
+author = "mdadamson"
+description = "A Millennium plugin that makes it easier to see and edit a game's launch options by adding a shortcut on each game's library page."
 
 [assets]
 # reference resources to be included inside the plugin at compile time
-resources=["resources/**/*"]
+# resources=["resources/**/*"]
 
 # THE BELOW IS NOT YET IMPLEMENTED IN MILLENNIUM
 # --------------------

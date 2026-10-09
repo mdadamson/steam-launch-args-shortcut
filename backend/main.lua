@@ -21,24 +21,8 @@ local function on_frontend_loaded()
     logger:info("Frontend load notification received!")
 end
 
-local function get_patches()
-    return {
-        {
-            find = [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
-            file = [[chunk~[0-9a-f]+\.js]],
-            transforms = {
-                {
-                    match = [[\(0,(\w+\.jsx)\)\(\w+\.SteamLogo]],
-                    replace = [[(0,\1)(#{{self}}?.hookedSettingsIcon?.SteamButton||(()=>null)]],
-                }
-            }
-        }
-    }
-end
-
 return {
     on_frontend_loaded = on_frontend_loaded,
     on_load = on_load,
     on_unload = on_unload,
-    patches = get_patches()
 }
