@@ -1,14 +1,22 @@
-import { definePlugin, playSectionClasses, AppDetails } from 'millennium';
+import { definePlugin, playSectionClasses, appDetailsClasses } from 'millennium';
 import { log, renderComponent, waitForElement } from './utils';
 import { onPopupCreate, onLocationChange, PopupType } from 'steambrew-utils/watchers';
 
+const adoPanelSelector = `.${appDetailsClasses.AppDetailsOverviewPanel}.AppDetailsOverviewPanel.Panel`;
+
 async function patch(window: Window, appId: number) {
 	const details = globalThis.window.appDetailsStore.GetAppDetails(appId);
-	await renderLaunchOptionsShortcut(window, details);
+	if(!details) {
+		log(`App details not found for appId: ${appId}. Skipping rendering.`);
+		return;
+	}
+	await renderLaunchOptionsShortcut(window, appId);
 }
 
-async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetails) {
-	const PlayBar = playSectionClasses; 
+async function renderLaunchOptionsShortcut(window: Window, appId: number) {
+	const appDetails = globalThis.window.appDetailsStore.GetAppDetails(appId);
+	let strOptions = appDetails ? appDetails.strLaunchOptions : "";
+	const PlayBar = playSectionClasses;
 	const shortcut = (
 		<div
 			className={`${PlayBar.GameStat} ${PlayBar.LastPlayed} Panel`}
@@ -19,9 +27,9 @@ async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetail
 						LAUNCH OPTIONS
 					</div>
 					<input 
-						id={`launch-options-input-${appDetails.unAppID}`}
+						id={`launch-options-input-${appId}`}
 						onChange={(e) => { 
-							globalThis.window.SteamClient.Apps.SetAppLaunchOptions(appDetails.unAppID, e.currentTarget.value);
+							globalThis.window.SteamClient.Apps.SetAppLaunchOptions(appId, e.currentTarget.value);
 						}}
 						spellCheck="false" 
 						style={{
@@ -33,14 +41,14 @@ async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetail
 							background: "rgba(59, 63, 72, 0.5)",
 						}}
 						type="text" 
-						defaultValue={appDetails?.strLaunchOptions}
+						defaultValue={strOptions}
 					/>
 				</div>
 			</div>
 		</div>
 	);
 
-	const adoPanel = await waitForElement(window.document.documentElement, 'div[class*="AppDetailsOverviewPanel Panel"]'); //window.document.querySelector('div[class*="AppDetailsOverviewPanel Panel"]');
+	const adoPanel = await waitForElement(window.document.documentElement, adoPanelSelector);
 	if (!adoPanel) {
 		log('The AppDetailsOverviewPanel was not found within the timeout. Skipping rendering.');
 		return;
@@ -52,7 +60,7 @@ async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetail
 		return;
 	}
 
-	if (parent.querySelector(`#launch-options-input-${appDetails.unAppID}`)) {
+	if (parent.querySelector(`#launch-options-input-${appId}`)) {
 		log('Launch options input already exists. Skipping rendering.');
 		return;
 	}
@@ -86,7 +94,6 @@ function initializePlugin(): () => void {
 
 		log('onPopupCreate called. popup: ', popup, ' type: ', type);
 
-		// ===== Monitor Main Window Location ===== //
 		unregisterLocChange = onLocationChange(
 			() => {
 				if (type === PopupType.Desktop) {
@@ -106,7 +113,7 @@ function initializePlugin(): () => void {
 
 				await patch(pw, appId);
 				window.SteamClient.Apps.RegisterForAppDetails(appId, (app) => {
-					const adoPanel = pw.document.querySelector('div[class*="AppDetailsOverviewPanel Panel"]');
+					const adoPanel = pw.document.querySelector(adoPanelSelector);
 					const launchOptionsInput = adoPanel?.querySelector(`#launch-options-input-${app.unAppID}`);
 					if (!launchOptionsInput) {
 						log('Launch options input not found in AppDetailsOverviewPanel.');
@@ -120,8 +127,8 @@ function initializePlugin(): () => void {
   	});
 	
 	log('Frontend initialized');
+	
 	return () => {
-		log('plugin being dismounted');
 		unregisterCreate?.();
 		unregisterLocChange?.();
 	};

@@ -18,10 +18,6 @@ description = "A Millennium plugin that makes it easier to see and edit a game's
 # [preload]
 # entry = "preload.lua"
 
-[backend]
-entry = "backend/main.lua"
-sources = ["backend/**/*.lua"]
-
 [frontend]
 entry = "frontend/index.tsx"
 
@@ -34,12 +30,6 @@ entry = "frontend/index.tsx"
 # All imports to "react" get hooked and replaced with window.SOME_FAKE_REACT.
 # import { useEffect } from "react";
 # useEffect() -> window.SOME_FAKE_REACT.useEffect() at runtime
-
-[webkit]
-entry = "webview/preload.ts"
-
-# [webkit.globals]
-# same as frontend.globals
 
 [compiler]
 # output path
