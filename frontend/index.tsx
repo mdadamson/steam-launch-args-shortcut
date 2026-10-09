@@ -19,7 +19,7 @@ async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetail
 						LAUNCH OPTIONS
 					</div>
 					<input 
-						id="launch-options-input"
+						id={`launch-options-input-${appDetails.unAppID}`}
 						onChange={(e) => { 
 							globalThis.window.SteamClient.Apps.SetAppLaunchOptions(appDetails.unAppID, e.currentTarget.value);
 						}}
@@ -48,41 +48,33 @@ async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetail
 
 	const parent = adoPanel.querySelector(`.${PlayBar.GameStatsSection}`);
 	if (!parent) {
-		log('Parent element not found. Skipping.');
+		log('Parent element not found. Skipping rendering.');
 		return;
 	}
 
-	if (parent.querySelector("#launch-options-input")) {
+	if (parent.querySelector(`#launch-options-input-${appDetails.unAppID}`)) {
 		log('Launch options input already exists. Skipping rendering.');
 		return;
 	}
 
-	const anchorClass = `.${PlayBar.GameStat}.GameStat.${PlayBar.Playtime}.Playtime`;
-	log('Anchor class: ', anchorClass);
-	const anchor = adoPanel.querySelector(anchorClass);
+	const anchor = adoPanel.querySelector(`.${PlayBar.GameStat}.GameStat.${PlayBar.Playtime}.Playtime`);
 	if (anchor) {
-		log('Anchor element found. Rendering component.');
+		log('Anchor element found. Inserting component after anchor.');
 		renderComponent(parent, shortcut, anchor);
 	}
 	else {
-		log('Anchor element not found. Rendering component without anchor.');
+		log('Anchor element not found. Appending component to parent.');
 		renderComponent(parent, shortcut);
 	}
 }
 
 function initializePlugin(): () => void {
-	// from copilot:
-	// caveat in your current code:
-	// - patch(pw, appId) renders the input immediately before you register the callback, 
-	// 		but React may not have committed it to the DOM yet. If the callback fires 
-	// 		before the input exists, your query returns null and the update is skipped.
-
 	let unregisterLocChange: (() => void) | undefined;
 	const { Unregister: unregisterCreate } = onPopupCreate((popup, type) => {
-		const pw = popup.window;
+		const pw = popup?.window ?? undefined;
 		if (!pw)
 		{
-			log("popup.window is not available. popup.window: '", popup.window, "'");
+			log("popup.window is not available. popup.window: '", popup ? popup.window : undefined, "'");
 			return;
 		}
 
@@ -115,7 +107,7 @@ function initializePlugin(): () => void {
 				await patch(pw, appId);
 				window.SteamClient.Apps.RegisterForAppDetails(appId, (app) => {
 					const adoPanel = pw.document.querySelector('div[class*="AppDetailsOverviewPanel Panel"]');
-					const launchOptionsInput = adoPanel?.querySelector("#launch-options-input");
+					const launchOptionsInput = adoPanel?.querySelector(`#launch-options-input-${app.unAppID}`);
 					if (!launchOptionsInput) {
 						log('Launch options input not found in AppDetailsOverviewPanel.');
 						return;
