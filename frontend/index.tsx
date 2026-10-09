@@ -1,38 +1,14 @@
-import { 
-	definePlugin, 
-	playSectionClasses, 
-	AppDetails
-} from 'millennium';
-import { Steam } from "steambrew-utils";
-import { onLocationChange, onPopupCreate, PopupType } from "steambrew-utils/watchers";
-import { ReactNode } from 'react';
-import { createRoot } from "react-dom/client";
-
-function log(...args: any[]) {
-  	window.console.log('[Launch-Ops-Shortcut]', ...args);
-}
+import { definePlugin, playSectionClasses, AppDetails } from 'millennium';
+import { log, renderComponent, waitForElement } from './utils';
+import { onPopupCreate, onLocationChange, PopupType } from 'steambrew-utils/watchers';
 
 async function patch(window: Window, appId: number) {
 	const details = globalThis.window.appDetailsStore.GetAppDetails(appId);
-	await render(window, details);
+	await renderLaunchOptionsShortcut(window, details);
 }
 
-function renderComponent(parent: Element, component: ReactNode, anchor?: Element)
-{
-	const container = window.document.createElement('div');
-	createRoot(container).render(component);
-	if (anchor) {
-		log('Inserting new element after anchor. Anchor: ', anchor);
-		anchor.insertAdjacentElement("afterend", container);
-	} else {
-		log('Appending new element to parent. Parent: ', parent);
-		parent.appendChild(container);
-	}
-}
-
-function render(window: Window, appDetails: AppDetails)
-{
-	const PlayBar = playSectionClasses;
+async function renderLaunchOptionsShortcut(window: Window, appDetails: AppDetails) {
+	const PlayBar = playSectionClasses; 
 	const shortcut = (
 		<div
 			className={`${PlayBar.GameStat} ${PlayBar.LastPlayed} Panel`}
@@ -64,9 +40,9 @@ function render(window: Window, appDetails: AppDetails)
 		</div>
 	);
 
-	const adoPanel = window.document.querySelector('div[class*="AppDetailsOverviewPanel Panel"]');
-	if (!adoPanel || adoPanel.querySelector("#launch-options-input")) {
-		log('adoPanel null or launch-options-input element FOUND. Skipping. adoPanel: ', adoPanel);
+	const adoPanel = await waitForElement(window.document.documentElement, 'div[class*="AppDetailsOverviewPanel Panel"]'); //window.document.querySelector('div[class*="AppDetailsOverviewPanel Panel"]');
+	if (!adoPanel) {
+		log('The AppDetailsOverviewPanel was not found within the timeout. Skipping rendering.');
 		return;
 	}
 
@@ -76,20 +52,34 @@ function render(window: Window, appDetails: AppDetails)
 		return;
 	}
 
-	renderComponent(parent, shortcut);
+	if (parent.querySelector("#launch-options-input")) {
+		log('Launch options input already exists. Skipping rendering.');
+		return;
+	}
+
+	const anchorClass = `.${PlayBar.GameStat}.GameStat.${PlayBar.Playtime}.Playtime`;
+	log('Anchor class: ', anchorClass);
+	const anchor = adoPanel.querySelector(anchorClass);
+	if (anchor) {
+		log('Anchor element found. Rendering component.');
+		renderComponent(parent, shortcut, anchor);
+	}
+	else {
+		log('Anchor element not found. Rendering component without anchor.');
+		renderComponent(parent, shortcut);
+	}
 }
 
-async function initializePlugin() {
+function initializePlugin(): () => void {
 	// from copilot:
 	// caveat in your current code:
 	// - patch(pw, appId) renders the input immediately before you register the callback, 
 	// 		but React may not have committed it to the DOM yet. If the callback fires 
 	// 		before the input exists, your query returns null and the update is skipped.
 
-	// TODO: see if I can register for these events through the millenium sdk apis instead of steambrew/utils
-	onPopupCreate((popup, type) => {
+	let unregisterLocChange: (() => void) | undefined;
+	const { Unregister: unregisterCreate } = onPopupCreate((popup, type) => {
 		const pw = popup.window;
-		
 		if (!pw)
 		{
 			log("popup.window is not available. popup.window: '", popup.window, "'");
@@ -105,10 +95,10 @@ async function initializePlugin() {
 		log('onPopupCreate called. popup: ', popup, ' type: ', type);
 
 		// ===== Monitor Main Window Location ===== //
-		onLocationChange(
+		unregisterLocChange = onLocationChange(
 			() => {
 				if (type === PopupType.Desktop) {
-					return Steam.MainWindowBrowserManager?.m_lastLocation;
+					return Reflect.get(globalThis, "MainWindowBrowserManager")?.m_lastLocation;
 				}
 				else {
 					return pw.opener?.location;
@@ -138,13 +128,19 @@ async function initializePlugin() {
   	});
 	
 	log('Frontend initialized');
+	return () => {
+		log('plugin being dismounted');
+		unregisterCreate?.();
+		unregisterLocChange?.();
+	};
 }
 
 export default definePlugin(() => {
-	initializePlugin();
+	const unregister = initializePlugin();
 	
 	return {
 		title: 'Launch Options Shortcut',
 		icon: <></>,
+		onDismount: unregister,
 	};
 });
